@@ -9,13 +9,10 @@ var authData = ref.getAuth();
 //Create user list html
 function userHtml(user){
   if(user.connected){
-    var html = '<li class="media">';
-        html += '<div class="media-body">';
-        html += '<div class="media">';
+    var html = '<li class="media"><div class="media-body"><div class="media">';
         html += '<a class="pull-left" href="javascript:;">';
         html += '<img class="media-object img-circle" style="max-height:40px;" src="'+user.img+'" /></a>';
-        html += '<div class="media-body" ><h5>'+user.name+'</h5></div>';
-        html += '</div></div></li>';
+        html += '<div class="media-body" ><h5>'+user.name+'</h5></div></div></div></li>';
     $('.user_list').prepend(html);
   }
 }
@@ -51,13 +48,23 @@ function getData(authData){
     });
   });
 
+  var initialData = false;
   //Triggered once for each existing chat and then again every time a new chat is added 
   ref.child("chats").on("child_added", function(snapshot) {
-    chatHtml(snapshot.val());
+
+    var chat = snapshot.val();
+    chatHtml(chat);
+
+    if(initialData){
+      scrolltoTop();
+      if(authData.uid != chat.uid)
+        PageTitleNotification.On(chat.name+" says...", 2000);
+    }
   });
 
   //trigger after load all chat data and scroll to last message
   ref.child("chats").once("value", function(snap) {
+      initialData = true
       scrolltoTop();
   });
 
@@ -93,7 +100,6 @@ if(authData) {
   console.log("User is not logged in");
 }
 
-
 // Authenticate user with facebook and save user data to firebase
 $('.fblogin').click(function(){
   ref.authWithOAuthPopup("facebook", function(error, authData) {
@@ -106,7 +112,6 @@ $('.fblogin').click(function(){
         name: authData.facebook.displayName,
         img: authData.facebook.cachedUserProfile.picture.data.url,
       });
-      var authData = authData;
       getData(authData);
     }
   });
@@ -115,15 +120,16 @@ $('.fblogin').click(function(){
 //Send message to firebase server
 $('.btn_send').click(function(){
     var msg = $('#inputMsg').val();
-    if(msg.length > 0 && authData){
+    var authData = ref.getAuth();
+    if(msg.length > 0 && ref.getAuth()){
       ref.child("chats").push({
+          uid: authData.uid,
           name: authData.facebook.displayName,
           img: authData.facebook.cachedUserProfile.picture.data.url,
           msg: msg,
           date: Firebase.ServerValue.TIMESTAMP
       })
       $('#inputMsg').val('')
-      scrolltoTop();
     }
 
 });
@@ -137,3 +143,28 @@ $('.btn_send').click(function(){
       return false;  
     }
   });   
+
+ //Show new messages alert on the page title bar
+ var PageTitleNotification = {
+    Vars:{
+        OriginalTitle: document.title,
+        Interval: null
+    },    
+    On: function(notification, intervalSpeed){
+        var _this = this;
+        _this.Vars.Interval = setInterval(function(){
+             document.title = (_this.Vars.OriginalTitle == document.title)
+                                 ? notification
+                                 : _this.Vars.OriginalTitle;
+        }, (intervalSpeed) ? intervalSpeed : 3000);
+    },
+    Off: function(){
+        clearInterval(this.Vars.Interval);
+        document.title = this.Vars.OriginalTitle;   
+    }
+}
+//Close new message alert when focus on the message input field
+$( "#inputMsg" ).focus(function() {
+    PageTitleNotification.Off();
+});
+
