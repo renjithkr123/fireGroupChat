@@ -1,4 +1,4 @@
-# FiregroupChat
+# fireGroupChat
 This is a basic group chat widget that built with Firebase. It shows an example of how to build a simple chat application without any server side code.
 
 ## Setup
